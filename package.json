@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "hledit-mcp": "./dist/index.js"
+    "hledit-mcp": "dist/index.js"
   },
   "license": "MIT",
   "author": "dabito",
