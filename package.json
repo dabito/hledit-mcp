@@ -1,0 +1,78 @@
+{
+  "name": "hledit-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for hledit hash-anchored file edits — for Claude Code, Claude Desktop, Cursor, and any other MCP-compatible AI coding agent. Rejects stale writes before they happen.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "hledit-mcp": "./dist/index.js"
+  },
+  "license": "MIT",
+  "author": "dabito",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dabito/hledit-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dabito/hledit-mcp/issues"
+  },
+  "homepage": "https://github.com/dabito/hledit-mcp#readme",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "claude-code",
+    "claude-desktop",
+    "cursor",
+    "hledit",
+    "hashline",
+    "hash-anchored",
+    "stale-write",
+    "stale-edit",
+    "file-editing",
+    "context-safe",
+    "local-first",
+    "ai-agent",
+    "coding-agents"
+  ],
+  "files": [
+    "dist",
+    "index.ts",
+    "core.ts",
+    "core.test.ts",
+    "e2e.test.ts",
+    "build.mjs",
+    "tsconfig.json",
+    "eslint.config.js",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "start": "npx tsx index.ts",
+    "build": "node build.mjs",
+    "test": "npm run typecheck && npm run build && npx tsx --test core.test.ts e2e.test.ts && npm run lint",
+    "typecheck": "tsc --noEmit --strict --skipLibCheck",
+    "lint": "eslint .",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.61.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
