@@ -2,7 +2,19 @@
 
 ## Unreleased
 
-No changes yet.
+### Added
+
+- Deterministic MCP stdio demo transcript and generator under `docs/demo/`.
+- `ROADMAP.md` with asciinema/GIF demo follow-up and listing tasks.
+
+### Changed
+
+- README links the MCP transcript demo near the top.
+- Package metadata includes demo docs and uses standard-MCP-client wording.
+
+### Fixed
+
+- Stale `edit` failures now render as `Edit failed.` instead of `Batch failed.`
 
 ## [0.1.0] - 2026-07-03
 

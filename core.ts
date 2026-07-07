@@ -120,12 +120,13 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
 	}
 }
 
-function formatBatchResult(result: Record<string, unknown>): string {
+function formatBatchResult(result: Record<string, unknown>, kind: HleditParams["op"] | undefined): string {
 	const lines: string[] = [];
 	const ok = result.ok !== false;
+	const noun = kind === "edit" ? "Edit" : "Batch";
 
 	if (ok) {
-		lines.push(result.checked === true ? "Batch check ok." : "Batch ok.");
+		lines.push(result.checked === true ? "Batch check ok." : `${noun} ok.`);
 
 		if (typeof result.editsApplied === "number") {
 			lines.push(`Edits applied: ${result.editsApplied}`);
@@ -144,7 +145,7 @@ function formatBatchResult(result: Record<string, unknown>): string {
 		return lines.join("\n");
 	}
 
-	lines.push("Batch failed.");
+	lines.push(`${noun} failed.`);
 	if (typeof result.error === "string") {
 		lines.push(`Error: ${result.error}`);
 	}
@@ -200,7 +201,7 @@ export function formatRunText(run: HleditRun, kind: HleditParams["op"] | undefin
 	if (!parsed) return text;
 
 	if ("editsApplied" in parsed || "failed" in parsed || "message" in parsed) {
-		return formatBatchResult(parsed);
+		return formatBatchResult(parsed, kind);
 	}
 
 	return text;
