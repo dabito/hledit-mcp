@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+No changes yet.
+
+## [0.1.2] - 2026-07-05
+
+### Fixed
+
+- Changelog release metadata now matches the published npm tarball contents.
+
+## [0.1.1] - 2026-07-05
+
 ### Added
 
 - Deterministic MCP stdio demo transcript and generator under `docs/demo/`.
@@ -15,7 +25,6 @@
 ### Fixed
 
 - Stale `edit` failures now render as `Edit failed.` instead of `Batch failed.`
-
 ## [0.1.0] - 2026-07-03
 
 ### Added
