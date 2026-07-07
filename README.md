@@ -1,8 +1,8 @@
 # hledit-mcp
 
-`hledit-mcp` is an MCP server exposing [`hledit`](https://github.com/dabito/hledit)'s hash-anchored file edits to any MCP-compatible AI coding agent — Claude Code, Claude Desktop, Cursor, and others.
+`hledit-mcp` is an MCP server exposing [`hledit`](https://github.com/dabito/hledit)'s hash-anchored file edits to standard MCP clients such as Claude Code, Claude Desktop, and Cursor.
 
-Same idea as [`pi-hledit`](https://github.com/dabito/pi-hledit) (the Pi-native integration), but over MCP instead of Pi's extension API, so it reaches every MCP host, not just Pi.
+Same idea as [`pi-hledit`](https://github.com/dabito/pi-hledit) (the Pi-native integration), but over MCP instead of Pi's extension API, so the same edit primitive can be used from MCP-compatible clients.
 
 Instead of asking an agent to reproduce old text exactly, `hledit read` annotates each line with a stable anchor:
 
@@ -17,6 +17,8 @@ Write commands reference anchors such as `6#MX`. Before changing the file, `hled
 ## Why MCP, separately from pi-hledit
 
 `pi-hledit` and `hledit-mcp` share the same tool contract (`core.ts` in this repo — arg-building, batch translation, result formatting) and the same underlying `hledit` CLI. Only the registration/execution glue differs: `pi-hledit` wires that contract into Pi's `registerTool`, this wires it into `@modelcontextprotocol/sdk`'s `McpServer`. MCP has no equivalent of Pi's `renderCall`/`renderResult` terminal rendering, so this package doesn't have one either — that layer is genuinely Pi-specific chrome, not part of the portable tool contract.
+
+Use `hledit-mcp` when you want stale-write rejection over an MCP tool boundary instead of relying on a host's native text replacement behavior.
 
 ## Requirements
 
@@ -56,7 +58,7 @@ Or add it manually to your client's MCP server config:
 | Variable     | Default              | Description                                                        |
 | ------------ | --------------------- | ------------------------------------------------------------------- |
 | `HLEDIT_BIN` | `hledit` (on `PATH`) | Path to the `hledit` binary, if not on `PATH`.                     |
-| `HLEDIT_CWD` | server's `process.cwd()` | Working directory `hledit` resolves relative paths against.     |
+| `HLEDIT_CWD` | server's `process.cwd()` | Working directory `hledit` resolves relative paths against. Keep this scoped to the workspace you expect the MCP client to edit. |
 
 ## Tool
 
@@ -75,7 +77,7 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 | `op`         | string  | ✓                  | `"read"`, `"edit"`, or `"batch"`                                      |
 | `path`       | string  | ✓                  | File path                                                             |
 | `offset`     | number  |                    | 1-indexed starting line (`read`)                                      |
-| `limit`      | number  |                    | Max lines to return (`read`)                                          |
+| `limit`      | number  |                    | Max lines to return (`read`); defaults to `2000`                     |
 | `grep`       | string  |                    | Filter lines by substring (`read`)                                    |
 | `action`     | string  |                    | `replace`, `insert`, `delete`, or `replace-range` (`edit`)             |
 | `anchor`     | string  | for `edit`/`batch` | `LN#HASH` anchor, e.g. `12#NK`                                        |
@@ -85,6 +87,8 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 | `edits`      | string  | for `batch`        | JSON array of batch edit ops                                          |
 
 Workflow: `read` to get anchors → `edit` (single change) or `batch` (multiple). If an edit returns `stale`, re-read to get fresh anchors before retrying — the anchor's line moved or changed since it was read.
+
+Default `read` calls are bounded: when `offset`/`limit` are omitted, the server uses `offset=1` and `limit=2000`.
 
 ## Development
 
@@ -98,6 +102,10 @@ npm start         # run the server directly from source via tsx (stdio transport
 Unit tests in `core.test.ts` cover the same contract as `pi-hledit`'s test suite, minus the Pi-specific rendering assertions (there's no render layer here). `e2e.test.ts` drives the built `dist/index.js` over a real MCP stdio handshake with `@modelcontextprotocol/sdk`'s own `Client`/`StdioClientTransport` — the same artifact `npx hledit-mcp` runs, not just the TypeScript source.
 
 The published `bin`/`main` point at `dist/index.js`, built with esbuild (`build.mjs`) and run via plain `node` — this keeps the `>=18` Node requirement honest. Running `index.ts` directly with `node` (no tsx) only works on Node ≥22.6, which has built-in TypeScript type-stripping; older LTS versions have no such support at all.
+
+## Credits and prior art
+
+The hashline-edit idea comes from Can Bölük / @can1357's coding-agent harness work, especially [“I Improved 15 LLMs at Coding in One Afternoon. Only the Harness Changed.”](https://blog.can.ac/2026/02/12/the-harness-problem/) and [`oh-my-pi`](https://github.com/can1357/oh-my-pi). See [`hledit`'s credits](https://github.com/dabito/hledit#credits-and-prior-art) for more prior art.
 
 ## Related packages
 
