@@ -1,7 +1,8 @@
 {
   "name": "hledit-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "MCP server for hledit hash-anchored file edits. Rejects stale writes before they happen for standard MCP clients.",
+  "mcpName": "io.github.dabito/hledit-mcp",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -48,7 +49,8 @@
     "CHANGELOG.md",
     "ROADMAP.md",
     "docs/demo",
-    "LICENSE"
+    "LICENSE",
+    "server.json"
   ],
   "publishConfig": {
     "access": "public"

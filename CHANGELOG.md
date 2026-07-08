@@ -4,6 +4,12 @@
 
 No changes yet.
 
+## [0.1.3] - 2026-07-08
+
+### Added
+
+- `mcpName` package metadata and `server.json` for official MCP Registry publishing.
+
 ## [0.1.2] - 2026-07-05
 
 ### Fixed

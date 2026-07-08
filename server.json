@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.dabito/hledit-mcp",
+  "title": "hledit MCP",
+  "description": "Hash-anchored file edits for MCP clients. Rejects stale writes before they happen.",
+  "repository": {
+    "url": "https://github.com/dabito/hledit-mcp",
+    "source": "github"
+  },
+  "version": "0.1.3",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "hledit-mcp",
+      "version": "0.1.3",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
