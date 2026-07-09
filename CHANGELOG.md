@@ -4,6 +4,14 @@
 
 No changes yet.
 
+## [0.1.4] - 2026-07-09
+
+### Changed
+
+- README install examples now use `npx -y hledit-mcp` and show `HLEDIT_CWD` in MCP client config.
+- README/tool descriptions and deterministic transcript now reflect current 3-character `hledit` anchors.
+- README links the official MCP Registry listing and adds stale-write-safe file editing SEO copy.
+
 ## [0.1.3] - 2026-07-08
 
 ### Added

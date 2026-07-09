@@ -26,7 +26,7 @@ server.registerTool(
 	{
 		title: "Hashline Edit",
 		description:
-			"Read, edit, or batch-edit files using hash-anchored line references (LN#HASH). " +
+			"Read, edit, or batch-edit files using hash-anchored line references (LN#HASH, currently LN#HHH). " +
 			"Use op:'read' to get anchors, op:'edit' for single changes, op:'batch' for multiple edits in one call. " +
 			"Anchors come from the most recent read and detect stale context before any write.",
 		inputSchema: {
@@ -41,7 +41,7 @@ server.registerTool(
 				.describe(
 					"Edit action: replace, insert, delete, or replace-range. Defaults to replace unless end_anchor or after imply otherwise.",
 				),
-			anchor: z.string().optional().describe("LN#HASH anchor, e.g. 12#NK"),
+			anchor: z.string().optional().describe("LN#HASH anchor, e.g. 12#NKT; legacy 2-character anchors are accepted by current hledit"),
 			end_anchor: z.string().optional().describe("End anchor for replace-range/delete range"),
 			content: z.string().optional().describe("Replacement or inserted content; empty = delete"),
 			after: z.boolean().optional().describe("For action:'insert', insert after anchor"),

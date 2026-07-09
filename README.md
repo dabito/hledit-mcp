@@ -8,12 +8,12 @@ Official MCP Registry: [`io.github.dabito/hledit-mcp`](https://registry.modelcon
 Instead of asking an agent to reproduce old text exactly, `hledit read` annotates each line with a stable anchor:
 
 ```text
-5#HY:func main() {
-6#MX:    fmt.Println("hello")
-7#NP:}
+5#K7Q:func main() {
+6#M9A:    fmt.Println("hello")
+7#R2C:}
 ```
 
-Write commands reference anchors such as `6#MX`. Before changing the file, `hledit` recomputes the hash at that line. If the file changed since it was read, the anchor is rejected and no write happens — the agent gets a `stale` error and a remap hint instead of silently corrupting the wrong line.
+Write commands reference anchors such as `6#M9A`. Before changing the file, `hledit` recomputes the hash at that line. If the file changed since it was read, the anchor is rejected and no write happens — the agent gets a `stale` error and a remap hint instead of silently corrupting the wrong line.
 
 ## Demo
 
@@ -45,24 +45,29 @@ Install the `hledit` CLI first:
 go install github.com/dabito/hledit@latest
 ```
 
-Then configure your MCP client to run `hledit-mcp`. For Claude Code:
+Then configure your MCP client to run `hledit-mcp`. For Claude Code, verify the current CLI syntax with `claude mcp add --help`; recent versions use:
 
 ```bash
-claude mcp add hledit npx hledit-mcp
+claude mcp add hledit -- npx -y hledit-mcp
 ```
 
-Or add it manually to your client's MCP server config:
+Claude Desktop and other MCP clients can use the same stdio server shape:
 
 ```json
 {
   "mcpServers": {
     "hledit": {
       "command": "npx",
-      "args": ["hledit-mcp"]
+      "args": ["-y", "hledit-mcp"],
+      "env": {
+        "HLEDIT_CWD": "/path/to/workspace"
+      }
     }
   }
 }
 ```
+
+Set `HLEDIT_CWD` to the workspace the MCP client should allow `hledit` to edit.
 
 ### Configuration
 
@@ -79,7 +84,6 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 
 | `op`    | Purpose                                            |
 | ------- | --------------------------------------------------- |
-| `read`  | Annotate lines with `LN#HASH` anchors               |
 | `edit`  | Apply a single replace/insert/delete/replace-range  |
 | `batch` | Apply multiple anchor-referenced edits in one call  |
 
@@ -91,7 +95,6 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 | `limit`      | number  |                    | Max lines to return (`read`); defaults to `2000`                     |
 | `grep`       | string  |                    | Filter lines by substring (`read`)                                    |
 | `action`     | string  |                    | `replace`, `insert`, `delete`, or `replace-range` (`edit`)             |
-| `anchor`     | string  | for `edit`/`batch` | `LN#HASH` anchor, e.g. `12#NK`                                        |
 | `end_anchor` | string  |                    | End anchor for `replace-range`/range delete                           |
 | `content`    | string  |                    | Replacement/inserted content; empty = delete                          |
 | `after`      | boolean |                    | For `action:"insert"`, insert after the anchor                       |

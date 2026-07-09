@@ -66,7 +66,7 @@ try {
 	const read1 = await client.callTool({ name: "hledit", arguments: { op: "read", path: file, limit: 20 } });
 	const read1Text = text(read1);
 	block(read1Text);
-	const anchor = read1Text.match(/^(\d+#[A-Z]+):/m)?.[1];
+	const anchor = read1Text.match(/^(\d+#[A-Z0-9]+):/m)?.[1];
 	if (!anchor) throw new Error(`could not parse anchor from read output: ${read1Text}`);
 	console.log(`Captured stale-prone anchor: \`${anchor}\``);
 
@@ -85,7 +85,7 @@ try {
 	const read2 = await client.callTool({ name: "hledit", arguments: { op: "read", path: file, limit: 20 } });
 	const read2Text = text(read2);
 	block(read2Text);
-	const fresh = read2Text.match(/^(\d+#[A-Z]+):/m)?.[1];
+	const fresh = read2Text.match(/^(\d+#[A-Z0-9]+):/m)?.[1];
 	if (!fresh) throw new Error(`could not parse fresh anchor from read output: ${read2Text}`);
 	console.log(`Fresh anchor: \`${fresh}\``);
 
