@@ -8,6 +8,8 @@
  */
 
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 const DEFAULT_HLEDIT_BIN = "hledit";
 
@@ -52,6 +54,63 @@ export interface HleditRun {
 	stderr: string;
 	exitCode: number | null;
 }
+interface DiffConfig {
+	enabled: boolean;
+	contextLines: number;
+	maxLines: number;
+	maxCells: number;
+}
+
+interface DiffLine {
+	kind: "context" | "added" | "removed" | "omitted";
+	text: string;
+	lineNumber?: number;
+}
+
+interface ChangeMetadata {
+	firstChangedLine: number;
+	lastChangedLine: number;
+	linesAdded: number;
+	linesDeleted: number;
+}
+
+const DEFAULT_DIFF_CONTEXT_LINES = 2;
+const DEFAULT_MAX_DIFF_LINES = 80;
+const DEFAULT_MAX_DIFF_CELL_COUNT = 40_000;
+
+function readEnvInt(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number): number {
+	const value = env[name];
+	if (value === undefined) return fallback;
+	const parsed = Number(value);
+	return Number.isInteger(parsed) && parsed >= min ? parsed : fallback;
+}
+
+function readEnvFlag(env: NodeJS.ProcessEnv, name: string): boolean {
+	const value = env[name];
+	return value === "1" || value?.toLowerCase() === "true" || value?.toLowerCase() === "yes";
+}
+
+export function diffConfig(env: NodeJS.ProcessEnv = process.env): DiffConfig {
+	return {
+		enabled: readEnvFlag(env, "HLEDIT_MCP_DIFF"),
+		contextLines: readEnvInt(env, "HLEDIT_MCP_DIFF_CONTEXT", DEFAULT_DIFF_CONTEXT_LINES, 0),
+		maxLines: readEnvInt(env, "HLEDIT_MCP_DIFF_MAX_LINES", DEFAULT_MAX_DIFF_LINES, 3),
+		maxCells: readEnvInt(env, "HLEDIT_MCP_DIFF_MAX_CELLS", DEFAULT_MAX_DIFF_CELL_COUNT, 1),
+	};
+}
+
+export function formatDiffConfigStatus(env: NodeJS.ProcessEnv = process.env): string {
+	const config = diffConfig(env);
+	return [
+		`Diff output: ${config.enabled ? "enabled" : "disabled"}`,
+		"Diff config:",
+		`  HLEDIT_MCP_DIFF=${config.enabled ? "1" : "0"}`,
+		`  HLEDIT_MCP_DIFF_MAX_LINES=${config.maxLines}`,
+		`  HLEDIT_MCP_DIFF_CONTEXT=${config.contextLines}`,
+		`  HLEDIT_MCP_DIFF_MAX_CELLS=${config.maxCells}`,
+	].join("\n");
+}
+
 
 interface CliBatchEdit {
 	op: BatchOp;
@@ -219,7 +278,7 @@ function formatBatchResult(result: Record<string, unknown>, kind: HleditParams["
 	return lines.join("\n");
 }
 
-export function formatRunText(run: HleditRun, kind: HleditParams["op"] | undefined): string {
+export function formatRunText(run: HleditRun, kind: HleditParams["op"] | undefined, diffText?: string): string {
 	const text = run.stdout.trimEnd() || run.stderr.trimEnd();
 
 	if (run.exitCode !== 0) {
@@ -237,12 +296,156 @@ export function formatRunText(run: HleditRun, kind: HleditParams["op"] | undefin
 	if (!parsed) return text;
 
 	if (hasEditMetadata(parsed)) {
-		return formatBatchResult(parsed, kind);
+		return appendDiffText(formatBatchResult(parsed, kind), diffText);
 	}
 
 	return text;
 }
 
+function appendDiffText(summary: string, diffText: string | undefined): string {
+	if (!diffText) return summary;
+	return `${summary}\n\n\`\`\`diff\n${diffText}\n\`\`\``;
+}
+
+function parseChangeMetadata(run: HleditRun): ChangeMetadata | undefined {
+	if (run.exitCode !== 0) return undefined;
+	const text = run.stdout.trimEnd() || run.stderr.trimEnd();
+	const parsed = parseJsonObject(text);
+	if (!parsed) return undefined;
+	const { firstChangedLine, lastChangedLine, linesAdded, linesDeleted } = parsed;
+	if (
+		typeof firstChangedLine !== "number" ||
+		typeof lastChangedLine !== "number" ||
+		typeof linesAdded !== "number" ||
+		typeof linesDeleted !== "number"
+	) {
+		return undefined;
+	}
+	return { firstChangedLine, lastChangedLine, linesAdded, linesDeleted };
+}
+
+function splitSnapshotLines(text: string): string[] {
+	return text.endsWith("\n") ? text.slice(0, -1).split("\n") : text.split("\n");
+}
+
+async function readTextSnapshot(filePath: string, cwd: string): Promise<string | undefined> {
+	try {
+		return await readFile(resolve(cwd, filePath), "utf8");
+	} catch {
+		return undefined;
+	}
+}
+
+function lcsDiff(
+	oldLines: string[],
+	newLines: string[],
+	oldStartLine: number,
+	newStartLine: number,
+	config: DiffConfig,
+): DiffLine[] {
+	if (oldLines.length * newLines.length > config.maxCells) {
+		return [
+			{
+				kind: "omitted",
+				text: `... diff omitted: changed window too large (${oldLines.length} old lines, ${newLines.length} new lines) ...`,
+			},
+		];
+	}
+	const dp = Array.from({ length: oldLines.length + 1 }, () => Array<number>(newLines.length + 1).fill(0));
+	for (let i = oldLines.length - 1; i >= 0; i--) {
+		for (let j = newLines.length - 1; j >= 0; j--) {
+			dp[i]![j] = oldLines[i] === newLines[j] ? dp[i + 1]![j + 1]! + 1 : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
+		}
+	}
+	const diff: DiffLine[] = [];
+	let i = 0;
+	let j = 0;
+	let oldLine = oldStartLine;
+	let newLine = newStartLine;
+	while (i < oldLines.length && j < newLines.length) {
+		if (oldLines[i] === newLines[j]) {
+			diff.push({ kind: "context", text: oldLines[i]!, lineNumber: oldLine });
+			i++;
+			j++;
+			oldLine++;
+			newLine++;
+		} else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
+			diff.push({ kind: "removed", text: oldLines[i]!, lineNumber: oldLine });
+			i++;
+			oldLine++;
+		} else {
+			diff.push({ kind: "added", text: newLines[j]!, lineNumber: newLine });
+			j++;
+			newLine++;
+		}
+	}
+	while (i < oldLines.length) {
+		diff.push({ kind: "removed", text: oldLines[i]!, lineNumber: oldLine });
+		i++;
+		oldLine++;
+	}
+	while (j < newLines.length) {
+		diff.push({ kind: "added", text: newLines[j]!, lineNumber: newLine });
+		j++;
+		newLine++;
+	}
+	return diff;
+}
+
+function capDiffLines(lines: DiffLine[], config: DiffConfig): DiffLine[] {
+	if (lines.length <= config.maxLines) return lines;
+	const retainedLineCount = config.maxLines - 1;
+	const headCount = Math.floor(retainedLineCount / 2);
+	const tailCount = retainedLineCount - headCount;
+	return [
+		...lines.slice(0, headCount),
+		{ kind: "omitted", text: `... (${lines.length - retainedLineCount} diff lines omitted) ...` },
+		...lines.slice(lines.length - tailCount),
+	];
+}
+
+function formatDisplayDiff(lines: DiffLine[], lineNumWidth: number): string {
+	return lines
+		.map((line) => {
+			if (line.kind === "omitted") return line.text;
+			const lineNumber = String(line.lineNumber ?? "").padStart(lineNumWidth, " ");
+			const prefix = line.kind === "added" ? "+" : line.kind === "removed" ? "-" : " ";
+			return `${prefix}${lineNumber} ${line.text}`;
+		})
+		.join("\n");
+}
+
+export function buildDiff(beforeText: string, afterText: string, metadata: ChangeMetadata, config: DiffConfig = diffConfig()): string | undefined {
+	if (!config.enabled) return undefined;
+	const beforeLines = splitSnapshotLines(beforeText);
+	const afterLines = splitSnapshotLines(afterText);
+	const first = Math.max(1, metadata.firstChangedLine);
+	const last = Math.max(first, metadata.lastChangedLine);
+	const netLineDelta = metadata.linesAdded - metadata.linesDeleted;
+	const oldStart = Math.max(1, first - config.contextLines);
+	const oldEnd = Math.min(beforeLines.length, last + config.contextLines);
+	const newStart = Math.max(1, first - config.contextLines);
+	const newEnd = Math.min(afterLines.length, Math.max(first, last + netLineDelta) + config.contextLines);
+	const oldSegment = beforeLines.slice(oldStart - 1, oldEnd);
+	const newSegment = afterLines.slice(newStart - 1, newEnd);
+	if (oldSegment.join("\n") === newSegment.join("\n")) return undefined;
+	const lineNumWidth = String(Math.max(oldEnd, newEnd, 1)).length;
+	return formatDisplayDiff(capDiffLines(lcsDiff(oldSegment, newSegment, oldStart, newStart, config), config), lineNumWidth);
+}
+
+async function diffForRun(
+	beforeText: string | undefined,
+	filePath: string,
+	run: HleditRun,
+	cwd: string,
+	config: DiffConfig,
+): Promise<string | undefined> {
+	if (!config.enabled || beforeText === undefined) return undefined;
+	const metadata = parseChangeMetadata(run);
+	if (!metadata) return undefined;
+	const afterText = await readTextSnapshot(filePath, cwd);
+	return afterText === undefined ? undefined : buildDiff(beforeText, afterText, metadata, config);
+}
 function toNum(v: number | undefined): number | undefined {
 	return v !== undefined && v >= 0 ? v : undefined;
 }
@@ -406,8 +609,8 @@ export function errorResult(text: string): ToolTextResult {
 	return { content: [{ type: "text", text }], isError: true };
 }
 
-export function textResult(run: HleditRun, kind: HleditParams["op"] | undefined): ToolTextResult {
-	return { content: [{ type: "text", text: formatRunText(run, kind) }], isError: run.exitCode !== 0 };
+export function textResult(run: HleditRun, kind: HleditParams["op"] | undefined, diffText?: string): ToolTextResult {
+	return { content: [{ type: "text", text: formatRunText(run, kind, diffText) }], isError: run.exitCode !== 0 };
 }
 
 /** Execute one hledit op end-to-end: build CLI args, run the binary, format the result. */
@@ -425,14 +628,20 @@ export async function executeHledit(
 	if (op === "edit") {
 		const request = buildEditRequest(params);
 		if (!request.ok) return errorResult(request.error);
-		return textResult(await runHledit(request.args, request.stdin, cwd, signal), op);
+		const config = diffConfig();
+		const beforeText = config.enabled ? await readTextSnapshot(path, cwd) : undefined;
+		const run = await runHledit(request.args, request.stdin, cwd, signal);
+		return textResult(run, op, await diffForRun(beforeText, path, run, cwd, config));
 	}
 
 	if (op === "batch") {
 		if (params.edits === undefined) return errorResult("missing 'edits' param for op:'batch'");
 		const translation = translateBatchEdits(params.edits);
 		if (!translation.ok) return errorResult(translation.error);
-		return textResult(await runHledit(["batch", path], translation.json, cwd, signal), op);
+		const config = diffConfig();
+		const beforeText = config.enabled ? await readTextSnapshot(path, cwd) : undefined;
+		const run = await runHledit(["batch", path], translation.json, cwd, signal);
+		return textResult(run, op, await diffForRun(beforeText, path, run, cwd, config));
 	}
 
 	return errorResult("unknown op. Must be: read, edit, or batch");

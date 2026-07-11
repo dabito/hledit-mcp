@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1] - 2026-07-11
+
+### Added
+
+- Add opt-in capped textual diff output for successful `edit`/`batch` calls via `HLEDIT_MCP_DIFF=1`.
+- Document `HLEDIT_MCP_DIFF_MAX_LINES`, `HLEDIT_MCP_DIFF_CONTEXT`, and `HLEDIT_MCP_DIFF_MAX_CELLS` for token-safe diff output.
+
 ## [0.2.0] - 2026-07-09
 
 ### Added
@@ -12,7 +19,6 @@
 - Build the MCP server version from `package.json` metadata.
 - Clarify batch edit schema/docs for `replace` / `delete` / `insert` batch operations.
 
-No changes yet.
 
 ## [0.1.4] - 2026-07-09
 

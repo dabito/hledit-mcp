@@ -1,6 +1,6 @@
 {
   "name": "hledit-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP server for hledit hash-anchored file edits. Rejects stale writes before they happen for standard MCP clients.",
   "mcpName": "io.github.dabito/hledit-mcp",
   "type": "module",

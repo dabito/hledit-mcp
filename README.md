@@ -75,10 +75,14 @@ Set `HLEDIT_CWD` to the workspace the MCP client should allow `hledit` to edit.
 
 ### Configuration
 
-| Variable     | Default              | Description                                                        |
-| ------------ | --------------------- | ------------------------------------------------------------------- |
-| `HLEDIT_BIN` | `hledit` (on `PATH`) | Path to the `hledit` binary, if not on `PATH`.                     |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `HLEDIT_BIN` | `hledit` (on `PATH`) | Path to the `hledit` binary, if not on `PATH`. |
 | `HLEDIT_CWD` | server's `process.cwd()` | Working directory `hledit` resolves relative paths against. Keep this scoped to the workspace you expect the MCP client to edit. |
+| `HLEDIT_MCP_DIFF` | `0` | Opt-in textual diff output for successful `edit`/`batch` calls. Off by default to keep MCP/model context compact. Set `1`, `true`, or `yes` to enable. |
+| `HLEDIT_MCP_DIFF_MAX_LINES` | `80` | Max diff lines when `HLEDIT_MCP_DIFF` is enabled, including the omission marker. Minimum accepted value: `3`. |
+| `HLEDIT_MCP_DIFF_CONTEXT` | `2` | Context lines around changed ranges when diff output is enabled. Minimum accepted value: `0`. |
+| `HLEDIT_MCP_DIFF_MAX_CELLS` | `40000` | Max LCS comparison cells before diff body is omitted. Minimum accepted value: `1`. |
 
 ## Tool
 
@@ -108,6 +112,8 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 Workflow: `read` to get anchors → `edit` (single change) or `batch` (multiple). If an edit returns `stale`, re-read to get fresh anchors before retrying — the anchor's line moved or changed since it was read.
 
 Successful `edit` and `batch` calls return concise summaries, including `Lines: +N -M` when the installed `hledit` CLI provides line delta metadata (`hledit >= 1.2.4`). Older `hledit` versions still work; they just omit the line delta summary.
+
+Set `HLEDIT_MCP_DIFF=1` to append a capped fenced `diff` block for successful edits. Leave it off for the most token-economical MCP responses.
 
 Preferred batch shape uses structured `edits` so the MCP/RPC layer handles escaping:
 

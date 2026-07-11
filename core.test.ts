@@ -7,6 +7,7 @@ import test from "node:test";
 import {
 	buildEditRequest,
 	buildReadArgs,
+	formatDiffConfigStatus,
 	executeHledit,
 	resolveHleditBin,
 	translateBatchEdits,
@@ -188,6 +189,47 @@ test("executeHledit edit returns human-readable summary", async () => {
 	} finally {
 		if (oldBin === undefined) delete process.env.HLEDIT_BIN;
 		else process.env.HLEDIT_BIN = oldBin;
+	}
+});
+
+test("executeHledit edit can append opt-in capped diff", async () => {
+	const dir = await mkdtemp(join(tmpdir(), "hledit-mcp-test-"));
+	const target = join(dir, "file.ts");
+	const fakeBin = join(dir, "hledit-fake.mjs");
+	await writeFile(target, "alpha\nbeta\ngamma\n");
+	await writeFile(
+		fakeBin,
+		`#!/usr/bin/env node
+import { writeFileSync } from "node:fs";
+writeFileSync("file.ts", "alpha\\nBETA\\ngamma\\n");
+console.log(JSON.stringify({ ok: true, firstChangedLine: 2, lastChangedLine: 2, linesAdded: 1, linesDeleted: 1 }));
+`,
+		{ mode: 0o755 },
+	);
+
+	const oldBin = process.env.HLEDIT_BIN;
+	const oldDiff = process.env.HLEDIT_MCP_DIFF;
+	const oldContext = process.env.HLEDIT_MCP_DIFF_CONTEXT;
+	process.env.HLEDIT_BIN = fakeBin;
+	process.env.HLEDIT_MCP_DIFF = "1";
+	process.env.HLEDIT_MCP_DIFF_CONTEXT = "1";
+	try {
+		assert.match(formatDiffConfigStatus(process.env), /Diff output: enabled/);
+		const result = await executeHledit(
+			{ op: "edit", path: "file.ts", action: "replace", anchor: "2#ABC", content: "BETA" },
+			dir,
+		);
+		assert.equal(result.isError, false);
+		assert.match(result.content[0]?.text ?? "", /```diff/);
+		assert.match(result.content[0]?.text ?? "", /-2 beta/);
+		assert.match(result.content[0]?.text ?? "", /\+2 BETA/);
+	} finally {
+		if (oldBin === undefined) delete process.env.HLEDIT_BIN;
+		else process.env.HLEDIT_BIN = oldBin;
+		if (oldDiff === undefined) delete process.env.HLEDIT_MCP_DIFF;
+		else process.env.HLEDIT_MCP_DIFF = oldDiff;
+		if (oldContext === undefined) delete process.env.HLEDIT_MCP_DIFF_CONTEXT;
+		else process.env.HLEDIT_MCP_DIFF_CONTEXT = oldContext;
 	}
 });
 
