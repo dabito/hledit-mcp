@@ -98,6 +98,24 @@ test("translates wrapper batch edits to CLI request", () => {
 	}
 });
 
+test("translates structured batch edits array to CLI request", () => {
+	const translation = translateBatchEdits([
+		{ op: "replace", anchor: "1#AB", lines: ["one"] },
+		{ op: "insert", anchor: "4#GH", lines: ["new"] },
+	]);
+
+	assert.equal(translation.ok, true);
+	if (translation.ok) {
+		assert.deepEqual(translation.request, {
+			edits: [
+				{ op: "replace", pos: "1#AB", lines: ["one"] },
+				{ op: "insert", pos: "4#GH", lines: ["new"] },
+			],
+		});
+		assert.equal(translation.json, JSON.stringify(translation.request));
+	}
+});
+
 test("rejects unsupported batch insert-after", () => {
 	const translation = translateBatchEdits(
 		JSON.stringify([{ op: "insert", anchor: "1#AB", after: true, lines: ["x"] }]),
@@ -149,15 +167,12 @@ console.log("1#AB:const ok = true;\\n2#CD:console.log(ok);");
 	}
 });
 
-test("executeHledit edit passes through the CLI's raw JSON result", async () => {
-	// Unlike pi-hledit's UI layer, executeHledit has no renderResult step, so
-	// an edit result without editsApplied/failed/message keys is returned
-	// as-is rather than summarized — MCP clients get the structured JSON.
+test("executeHledit edit returns human-readable summary", async () => {
 	const dir = await mkdtemp(join(tmpdir(), "hledit-mcp-test-"));
 	const fakeBin = join(dir, "hledit-fake.mjs");
 	await writeFile(
 		fakeBin,
-		`#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 1, lastChangedLine: 1 }))\n`,
+		`#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 1, lastChangedLine: 1, linesAdded: 1, linesDeleted: 1 }))\n`,
 		{ mode: 0o755 },
 	);
 
@@ -169,11 +184,7 @@ test("executeHledit edit passes through the CLI's raw JSON result", async () => 
 			dir,
 		);
 		assert.equal(result.isError, false);
-		assert.deepEqual(JSON.parse(result.content[0]?.text ?? "{}"), {
-			ok: true,
-			firstChangedLine: 1,
-			lastChangedLine: 1,
-		});
+		assert.equal(result.content[0]?.text, "Edit ok.\nChanged line: 1\nLines: +1 -1");
 	} finally {
 		if (oldBin === undefined) delete process.env.HLEDIT_BIN;
 		else process.env.HLEDIT_BIN = oldBin;
@@ -185,7 +196,7 @@ test("executeHledit batch returns human-readable summary", async () => {
 	const fakeBin = join(dir, "hledit-fake.mjs");
 	await writeFile(
 		fakeBin,
-		`#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 12, lastChangedLine: 18, editsApplied: 1 }))\n`,
+		`#!/usr/bin/env node\nconsole.log(JSON.stringify({ ok: true, firstChangedLine: 12, lastChangedLine: 18, editsApplied: 1, linesAdded: 3, linesDeleted: 1 }))\n`,
 		{ mode: 0o755 },
 	);
 
@@ -204,6 +215,7 @@ test("executeHledit batch returns human-readable summary", async () => {
 		assert.match(result.content[0]?.text ?? "", /Batch ok\./);
 		assert.match(result.content[0]?.text ?? "", /Edits applied: 1/);
 		assert.match(result.content[0]?.text ?? "", /Changed lines: 12-18/);
+		assert.match(result.content[0]?.text ?? "", /Lines: \+3 -1/);
 	} finally {
 		if (oldBin === undefined) delete process.env.HLEDIT_BIN;
 		else process.env.HLEDIT_BIN = oldBin;

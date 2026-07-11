@@ -25,6 +25,14 @@ const BATCH_OPS = ["replace", "delete", "insert"] as const;
 export type EditAction = (typeof EDIT_ACTIONS)[number];
 export type BatchOp = (typeof BATCH_OPS)[number];
 
+export interface BatchEditParam {
+	op: BatchOp;
+	anchor: string;
+	end_anchor?: string;
+	lines?: string[];
+	after?: boolean;
+}
+
 export interface HleditParams {
 	op: "read" | "edit" | "batch";
 	path: string;
@@ -36,7 +44,7 @@ export interface HleditParams {
 	end_anchor?: string;
 	content?: string;
 	after?: boolean;
-	edits?: string;
+	edits?: string | BatchEditParam[];
 }
 
 export interface HleditRun {
@@ -120,6 +128,27 @@ function parseJsonObject(text: string): Record<string, unknown> | null {
 	}
 }
 
+function formatLineDelta(result: Record<string, unknown>): string | undefined {
+	const linesAdded = result.linesAdded;
+	const linesDeleted = result.linesDeleted;
+	if (typeof linesAdded === "number" && typeof linesDeleted === "number") {
+		return `Lines: +${linesAdded} -${linesDeleted}`;
+	}
+	return undefined;
+}
+
+function hasEditMetadata(result: Record<string, unknown>): boolean {
+	return (
+		"editsApplied" in result ||
+		"failed" in result ||
+		"message" in result ||
+		"firstChangedLine" in result ||
+		"lastChangedLine" in result ||
+		"linesAdded" in result ||
+		"linesDeleted" in result
+	);
+}
+
 function formatBatchResult(result: Record<string, unknown>, kind: HleditParams["op"] | undefined): string {
 	const lines: string[] = [];
 	const ok = result.ok !== false;
@@ -135,12 +164,19 @@ function formatBatchResult(result: Record<string, unknown>, kind: HleditParams["
 		const firstChangedLine = result.firstChangedLine;
 		const lastChangedLine = result.lastChangedLine;
 		if (typeof firstChangedLine === "number" && typeof lastChangedLine === "number") {
-			lines.push(`Changed lines: ${firstChangedLine}-${lastChangedLine}`);
+			if (firstChangedLine === lastChangedLine) {
+				lines.push(`Changed line: ${firstChangedLine}`);
+			} else {
+				lines.push(`Changed lines: ${firstChangedLine}-${lastChangedLine}`);
+			}
 		} else if (typeof firstChangedLine === "number") {
 			lines.push(`First changed line: ${firstChangedLine}`);
 		} else if (typeof lastChangedLine === "number") {
 			lines.push(`Last changed line: ${lastChangedLine}`);
 		}
+
+		const delta = formatLineDelta(result);
+		if (delta) lines.push(delta);
 
 		return lines.join("\n");
 	}
@@ -200,7 +236,7 @@ export function formatRunText(run: HleditRun, kind: HleditParams["op"] | undefin
 	const parsed = parseJsonObject(text);
 	if (!parsed) return text;
 
-	if ("editsApplied" in parsed || "failed" in parsed || "message" in parsed) {
+	if (hasEditMetadata(parsed)) {
 		return formatBatchResult(parsed, kind);
 	}
 
@@ -287,16 +323,20 @@ export function buildEditRequest(
 	return { ok: true, args: ["replace", params.path, anchor, "-"], stdin: content };
 }
 
-export function translateBatchEdits(editsJson: string): BatchTranslationResult {
+export function translateBatchEdits(editsInput: string | unknown[]): BatchTranslationResult {
 	let parsed: unknown;
-	try {
-		parsed = JSON.parse(editsJson) as unknown;
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		return {
-			ok: false,
-			error: `invalid JSON in edits param: ${message}. Escape control characters: use \\t for tabs, \\n for newlines. Each line in the 'lines' array must be a separate string element. Or use op:'edit' for single changes.`,
-		};
+	if (typeof editsInput === "string") {
+		try {
+			parsed = JSON.parse(editsInput) as unknown;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			return {
+				ok: false,
+				error: `invalid JSON in legacy edits string: ${message}. Prefer structured edits array. If using a JSON string, Escape control characters: use \\t for tabs, \\n for newlines. Each line in the 'lines' array must be a separate string element. Or use op:'edit' for single changes.`,
+			};
+		}
+	} else {
+		parsed = editsInput;
 	}
 
 	if (!Array.isArray(parsed)) {
@@ -389,7 +429,7 @@ export async function executeHledit(
 	}
 
 	if (op === "batch") {
-		if (!params.edits) return errorResult("missing 'edits' param for op:'batch'");
+		if (params.edits === undefined) return errorResult("missing 'edits' param for op:'batch'");
 		const translation = translateBatchEdits(params.edits);
 		if (!translation.ok) return errorResult(translation.error);
 		return textResult(await runHledit(["batch", path], translation.json, cwd, signal), op);

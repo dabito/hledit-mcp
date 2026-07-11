@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## [0.2.0] - 2026-07-09
+
+### Added
+
+- Accept structured `edits` arrays for `op:'batch'` while keeping the legacy JSON string form.
+- Add concise edit/batch success summaries with `Lines: +N -M` when `hledit >= 1.2.4` provides line delta metadata.
+
+### Changed
+
+- Build the MCP server version from `package.json` metadata.
+- Clarify batch edit schema/docs for `replace` / `delete` / `insert` batch operations.
 
 No changes yet.
 

@@ -7,7 +7,10 @@
  * from node_modules at runtime, not something to bundle.
  */
 import { build } from "esbuild";
-import { chmod, mkdir } from "node:fs/promises";
+import { chmod, mkdir, readFile } from "node:fs/promises";
+
+const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+const packageVersion = typeof packageJson.version === "string" ? packageJson.version : "0.0.0";
 
 await mkdir("dist", { recursive: true });
 
@@ -18,6 +21,9 @@ await build({
 	target: "node18",
 	format: "esm",
 	outfile: "dist/index.js",
+	define: {
+		__HLEDIT_MCP_VERSION__: JSON.stringify(packageVersion),
+	},
 	external: [
 		"@modelcontextprotocol/sdk/server/mcp.js",
 		"@modelcontextprotocol/sdk/server/stdio.js",

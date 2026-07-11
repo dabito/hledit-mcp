@@ -56,6 +56,7 @@ test("real MCP handshake: tools/list exposes exactly the hledit tool with its sc
 		assert.ok(props.op, "schema exposes op");
 		assert.ok(props.path, "schema exposes path");
 		assert.ok(props.anchor, "schema exposes anchor");
+		assert.ok(props.edits, "schema exposes edits");
 		assert.deepEqual(tool.inputSchema.required, ["op", "path"]);
 	} finally {
 		await client.close();

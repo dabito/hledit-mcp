@@ -14,13 +14,26 @@ import { z } from "zod";
 
 import { executeHledit, resolveHleditCwd, type HleditParams } from "./core.ts";
 
-const server = new McpServer({
-	name: "hledit-mcp",
-	version: "0.1.0",
-});
+declare const __HLEDIT_MCP_VERSION__: string | undefined;
+
+const SERVER_VERSION =
+	typeof __HLEDIT_MCP_VERSION__ === "string" ? __HLEDIT_MCP_VERSION__ : (process.env.npm_package_version ?? "0.0.0");
 
 const EDIT_ACTIONS = ["replace", "insert", "delete", "replace-range"] as const;
+const BATCH_OPS = ["replace", "delete", "insert"] as const;
 
+const batchEditSchema = z.object({
+	op: z.enum(BATCH_OPS).describe("Batch edit op: replace, delete, or insert"),
+	anchor: z.string().describe("Start LN#HASH anchor"),
+	end_anchor: z.string().optional().describe("End LN#HASH anchor for range replace/delete"),
+	lines: z.array(z.string()).optional().describe("Replacement/inserted lines"),
+	after: z.boolean().optional().describe("Not supported for batch; use op:'edit' for insert-after"),
+});
+
+const server = new McpServer({
+	name: "hledit-mcp",
+	version: SERVER_VERSION,
+});
 server.registerTool(
 	"hledit",
 	{
@@ -45,7 +58,12 @@ server.registerTool(
 			end_anchor: z.string().optional().describe("End anchor for replace-range/delete range"),
 			content: z.string().optional().describe("Replacement or inserted content; empty = delete"),
 			after: z.boolean().optional().describe("For action:'insert', insert after anchor"),
-			edits: z.string().optional().describe("JSON array of batch edit ops (op: read/edit/batch)"),
+			edits: z
+				.union([z.array(batchEditSchema), z.string()])
+				.optional()
+				.describe(
+					"Batch edits as a structured array, or a legacy JSON string. Each edit uses op replace/delete/insert, anchor, optional end_anchor, and lines.",
+				),
 		},
 	},
 	async (params, extra) => {

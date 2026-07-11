@@ -8,11 +8,11 @@
 
 ## MCP contract parity
 
-- [ ] Accept structured `edits` arrays for `op:'batch'` while keeping the legacy JSON string form.
-- [ ] Add edit/batch line delta summaries (`Lines: +N -M`) when `hledit >= 1.2.4` provides `linesAdded` / `linesDeleted`; older `hledit` versions should continue working without that summary.
-- [ ] Format successful `edit` results as concise human-readable summaries instead of raw JSON where possible.
-- [ ] Align MCP server runtime version metadata with `package.json` during build/release.
-- [ ] Clean up batch `edits` schema/docs to describe `replace` / `delete` / `insert` batch ops accurately.
+- [x] Accept structured `edits` arrays for `op:'batch'` while keeping the legacy JSON string form.
+- [x] Add edit/batch line delta summaries (`Lines: +N -M`) when `hledit >= 1.2.4` provides `linesAdded` / `linesDeleted`; older `hledit` versions should continue working without that summary.
+- [x] Format successful `edit` results as concise human-readable summaries instead of raw JSON where possible.
+- [x] Align MCP server runtime version metadata with `package.json` during build/release.
+- [x] Clean up batch `edits` schema/docs to describe `replace` / `delete` / `insert` batch ops accurately.
 - [ ] Consider optional structured result metadata for raw JSON/diff/patch data if MCP clients benefit, while keeping text output compact.
 
 ## Marketplace/listing

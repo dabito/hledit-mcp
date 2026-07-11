@@ -88,6 +88,7 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 
 | `op`    | Purpose                                            |
 | ------- | --------------------------------------------------- |
+| `read`  | Read annotated lines with LN#HASH anchors             |
 | `edit`  | Apply a single replace/insert/delete/replace-range  |
 | `batch` | Apply multiple anchor-referenced edits in one call  |
 
@@ -102,9 +103,25 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 | `end_anchor` | string  |                    | End anchor for `replace-range`/range delete                           |
 | `content`    | string  |                    | Replacement/inserted content; empty = delete                          |
 | `after`      | boolean |                    | For `action:"insert"`, insert after the anchor                       |
-| `edits`      | string  | for `batch`        | JSON array of batch edit ops                                          |
+| `edits`      | array or string | for `batch` | Preferred: structured array of batch edit ops (`replace`/`delete`/`insert`). Legacy JSON string still accepted. |
 
 Workflow: `read` to get anchors → `edit` (single change) or `batch` (multiple). If an edit returns `stale`, re-read to get fresh anchors before retrying — the anchor's line moved or changed since it was read.
+
+Successful `edit` and `batch` calls return concise summaries, including `Lines: +N -M` when the installed `hledit` CLI provides line delta metadata (`hledit >= 1.2.4`). Older `hledit` versions still work; they just omit the line delta summary.
+
+Preferred batch shape uses structured `edits` so the MCP/RPC layer handles escaping:
+
+```json
+{
+  "op": "batch",
+  "path": "src/file.ts",
+  "edits": [
+    { "op": "replace", "anchor": "12#NKT", "lines": ["const ok = true;"] }
+  ]
+}
+```
+
+Legacy JSON-string `edits` remains supported during the transition.
 
 Default `read` calls are bounded: when `offset`/`limit` are omitted, the server uses `offset=1` and `limit=2000`.
 
