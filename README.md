@@ -102,6 +102,7 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 | `path`       | string  | ✓                  | File path                                                             |
 | `offset`     | number  |                    | 1-indexed starting line (`read`)                                      |
 | `limit`      | number  |                    | Max lines to return (`read`); defaults to `2000`                     |
+| `context`    | number  |                    | Surrounding lines around each grep match; defaults to `2` when `grep` is set, use `0` for match-only output |
 | `grep`       | string  |                    | Filter lines by substring (`read`)                                    |
 | `action`     | string  |                    | `replace`, `insert`, `delete`, or `replace-range` (`edit`)             |
 | `end_anchor` | string  |                    | End anchor for `replace-range`/range delete                           |
@@ -112,6 +113,8 @@ One tool, three operations, matching `pi-hledit`'s contract exactly:
 Workflow: `read` to get anchors → `edit` (single change) or `batch` (multiple). If an edit returns `stale`, re-read to get fresh anchors before retrying — the anchor's line moved or changed since it was read.
 
 Successful `edit` and `batch` calls return concise summaries, including `Lines: +N -M` when the installed `hledit` CLI provides line delta metadata (`hledit >= 1.2.4`). Older `hledit` versions still work; they just omit the line delta summary.
+
+Contextual grep uses a small default window (`context:2`) when `grep` is set; pass `context:0` for match-only output.
 
 Set `HLEDIT_MCP_DIFF=1` to append a capped fenced `diff` block for successful edits. Leave it off for the most token-economical MCP responses.
 
@@ -126,6 +129,18 @@ Preferred batch shape uses structured `edits` so the MCP/RPC layer handles escap
   ]
 }
 ```
+Contextual grep example:
+
+```json
+{ "op": "read", "path": "src/file.ts", "grep": "validateToken" }
+```
+
+Match-only grep example:
+
+```json
+{ "op": "read", "path": "src/file.ts", "grep": "validateToken", "context": 0 }
+```
+
 
 Legacy JSON-string `edits` remains supported during the transition.
 

@@ -36,6 +36,40 @@ test("builds read args with default range limit", () => {
 		"2000",
 		"--grep",
 		"func",
+		"--context",
+		"2",
+	]);
+	assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts", grep: "func", context: 0 }), [
+		"read-range",
+		"a.ts",
+		"--offset",
+		"1",
+		"--limit",
+		"2000",
+		"--grep",
+		"func",
+		"--context",
+		"0",
+	]);
+	assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts", context: 5 }), [
+		"read-range",
+		"a.ts",
+		"--offset",
+		"1",
+		"--limit",
+		"2000",
+	]);
+	assert.deepEqual(buildReadArgs({ op: "read", path: "a.ts", grep: "func", context: 2.5 }), [
+		"read-range",
+		"a.ts",
+		"--offset",
+		"1",
+		"--limit",
+		"2000",
+		"--grep",
+		"func",
+		"--context",
+		"2",
 	]);
 });
 

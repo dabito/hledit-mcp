@@ -47,6 +47,12 @@ server.registerTool(
 			path: z.string().describe("File path"),
 			offset: z.number().optional().describe("1-indexed starting line (read)"),
 			limit: z.number().optional().describe("Max lines to return (read)"),
+			context: z
+				.number()
+				.int()
+				.min(0)
+				.optional()
+				.describe("Surrounding lines for grep results; default 2 when grep is set, use 0 for match-only"),
 			grep: z.string().optional().describe("Filter lines by substring (read)"),
 			action: z
 				.enum(EDIT_ACTIONS)

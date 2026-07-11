@@ -40,6 +40,7 @@ export interface HleditParams {
 	path: string;
 	offset?: number;
 	limit?: number;
+	context?: number;
 	grep?: string;
 	action?: EditAction;
 	anchor?: string;
@@ -74,6 +75,7 @@ interface ChangeMetadata {
 	linesDeleted: number;
 }
 
+const DEFAULT_GREP_CONTEXT_LINES = 2;
 const DEFAULT_DIFF_CONTEXT_LINES = 2;
 const DEFAULT_MAX_DIFF_LINES = 80;
 const DEFAULT_MAX_DIFF_CELL_COUNT = 40_000;
@@ -450,6 +452,10 @@ function toNum(v: number | undefined): number | undefined {
 	return v !== undefined && v >= 0 ? v : undefined;
 }
 
+function toNonNegativeInt(v: number | undefined): number | undefined {
+	return v !== undefined && Number.isInteger(v) && v >= 0 ? v : undefined;
+}
+
 function hasAnchorShape(anchor: string): boolean {
 	return /^\d+#[A-Za-z0-9]+$/.test(anchor);
 }
@@ -457,6 +463,7 @@ function hasAnchorShape(anchor: string): boolean {
 export function buildReadArgs(params: HleditParams): string[] {
 	const offset = toNum(params.offset);
 	const limit = toNum(params.limit);
+	const contextLines = toNonNegativeInt(params.context);
 	const grep = params.grep || undefined;
 
 	const args = [
@@ -468,7 +475,7 @@ export function buildReadArgs(params: HleditParams): string[] {
 		String(limit ?? 2000),
 	];
 
-	if (grep) args.push("--grep", grep);
+	if (grep) args.push("--grep", grep, "--context", String(contextLines ?? DEFAULT_GREP_CONTEXT_LINES));
 
 	return args;
 }
