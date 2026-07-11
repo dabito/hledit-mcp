@@ -1,4 +1,8 @@
 # hledit-mcp
+[![npm version](https://img.shields.io/npm/v/hledit-mcp.svg)](https://www.npmjs.com/package/hledit-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.dabito%2Fhledit--mcp-blue)](https://registry.modelcontextprotocol.io/?search=hledit)
+[![Glama](https://glama.ai/mcp/servers/dabito/hledit-mcp/badges/score.svg)](https://glama.ai/mcp/servers/dabito/hledit-mcp)
 
 `hledit-mcp` is an MCP server exposing [`hledit`](https://github.com/dabito/hledit)'s hash-anchored file edits to standard MCP clients such as Claude Code, Claude Desktop, and Cursor.
 
